@@ -1,32 +1,33 @@
 import requests
 from bs4 import BeautifulSoup
+import time
+import json, codecs
 
+def procces_elem(num, num_otn):
+    inf_offers[num]['name'] = all_offers[num_otn].find('div', {'class': 'prodName'}).text.rstrip().strip('\n')  # Название оффера
+    inf_offers[num]['img'] = all_offers[num_otn].find("img")["src"]  # ссылка на изображение
+    inf_offers[num]['id'] = all_offers[num_otn].find('div', {'class': 'prodSku'}).text.strip().strip('ID: ')  # id оффера
+    inf_offers[num]['active'] = all_offers[num_otn].find('div', {'class': 'sProdStatus'}).text.strip('\n') # активный или нет
 
-def procces_elem(num):
-    inf10[num][0] = tables[num].find('div', {'class': 'prodName'}).text.rstrip().strip('\n')  # Название оффера
-    inf10[num][1] = tables[num].find("img")["src"]  # ссылка на изображение
-    inf10[num][2] = tables[num].find('div', {'class': 'prodSku'}).text.strip().strip('ID: ')  # id оффера
-    inf10[num][3] = tables[num].find('div', {'class': 'sProdStatus'}).text.strip('\n') # активный или нет
+    infovals = all_offers[num_otn].find_all('span', {'class': 'sInfoVal'})
 
-    infovals = tables[num].find_all('span', {'class': 'sInfoVal'})
-
-    inf10[num][4] = infovals[0].text  # CR
-    if inf10[num][4] == '':
-        inf10[num][4] = '-'
-    inf10[num][5] = infovals[1].text  # Апрув
-    if inf10[num][5] == '':
-        inf10[num][5] = '-'
-    inf10[num][6] = infovals[2].text  # Категория
-    inf10[num][7] = infovals[3].text.strip('\n')  # Страна
+    inf_offers[num]['cr'] = infovals[0].text  # CR
+    if inf_offers[num]['cr'] == '':
+        inf_offers[num]['cr'] = 'null'
+    inf_offers[num]['approve'] = infovals[1].text  # Апрув
+    if inf_offers[num]['approve'] == '':
+        inf_offers[num]['approve'] = 'null'
+    inf_offers[num]['category'] = infovals[2].text  # Категория
+    inf_offers[num]['country'] = infovals[3].text.strip('\n')  # Страна
 
     if (infovals[3].text.strip('\n') == 'Все страны') or (infovals[3].text.strip('\n') == 'Временно остановлен.'):
-        inf10[num][8] = infovals[3].text.strip('\n')  # Стоимость !!!ОБРАБОТКА ИСКЛЮЧЕНИЙ, ЕСЛИ СТОИМОСТЬ И ОТЧИСЛЕНИЯ НЕ УКАЗАНЫ!!!
-        inf10[num][9] = infovals[3].text.strip('\n')  # Отчисления
+        inf_offers[num]['cost'] = infovals[3].text.strip('\n')  # Стоимость !!!ОБРАБОТКА ИСКЛЮЧЕНИЙ, ЕСЛИ СТОИМОСТЬ И ОТЧИСЛЕНИЯ НЕ УКАЗАНЫ!!!
+        inf_offers[num]['deductiond'] = infovals[3].text.strip('\n')  # Отчисления
     else:
-        inf10[num][8] = infovals[4].text.strip('\n')  # Стоимость
-        inf10[num][9] = infovals[5].text.strip('\n')  # Отчисления
+        inf_offers[num]['cost'] = infovals[4].text.strip('\n')  # Стоимость
+        inf_offers[num]['deductions'] = infovals[5].text.strip('\n')  # Отчисления
 
-    inf10[num][10] = tables[num].find("a")["href"] #ссылка на оффер
+    inf_offers[num]['href'] = all_offers[num_otn].find("a")["href"] #ссылка на оффер
 
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
@@ -47,19 +48,40 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36'
 }
 
-r = requests.get('https://cpa.house/webmaster/offers/index/720', headers=headers)
+r = requests.get('https://cpa.house/webmaster/offers', headers=headers)
 print(r.status_code)
-
-with open('test.html', 'w') as output_file:
-  output_file.write(r.text)
-
 soup = BeautifulSoup(r.text)
-tables = soup.find_all('div', {'class': 'prodContentBlock'})
 
-inf10 = [[''] * 11 for i in range(10)]
+count_offers = int(soup.find('span', {'class': 'count-offers'}).text)   # количество офферов (всего)
 
-for i in range(len(tables)):
-    procces_elem(i)
 
-for item in inf10:
-    print(item, '\n')
+all_offers = soup.find_all('div', {'class': 'prodContentBlock'})
+
+inf_offers = {a: {'name': '', 'img': '', 'id': '', 'active': '', 'cr': '', 'approve': '', 'category': '', 'country': '', 'cost': '', 'deductions': '', 'href': ''} for a in range(1, count_offers+1)}  # создание словаря для всех офферов
+
+for i in range(1, len(all_offers)):
+    procces_elem(i, i)
+
+count_offers = int(soup.find('span', {'class': 'count-offers'}).text)
+print(count_offers)
+
+
+for i in range(10, count_offers, 10):
+    url = 'https://cpa.house/webmaster/offers/index/' + str(i)
+    r = requests.get(url=url, headers=headers)
+    print(r.status_code)
+    soup = BeautifulSoup(r.text)
+
+    count_offers = int(soup.find('span', {'class': 'count-offers'}).text)  # количество офферов (всего)
+
+    all_offers = soup.find_all('div', {'class': 'prodContentBlock'})
+
+    for j in range(1, len(all_offers)):
+        num = (i-10) + j
+        procces_elem(num, j)
+
+print(inf_offers)
+
+#with open('data.json', 'wb') as f:
+#    json.dump(data, codecs.getwriter('utf-8')(f), ensure_ascii=False)
+
