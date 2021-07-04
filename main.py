@@ -1,9 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
-import time
 import json, codecs
 
 def procces_elem(num, num_otn):
+    num_otn -= 1
     inf_offers[num]['name'] = all_offers[num_otn].find('div', {'class': 'prodName'}).text.rstrip().strip('\n')  # Название оффера
     inf_offers[num]['img'] = all_offers[num_otn].find("img")["src"]  # ссылка на изображение
     inf_offers[num]['id'] = all_offers[num_otn].find('div', {'class': 'prodSku'}).text.strip().strip('ID: ')  # id оффера
@@ -49,8 +49,8 @@ headers = {
 }
 
 r = requests.get('https://cpa.house/webmaster/offers', headers=headers)
-print(r.status_code)
-soup = BeautifulSoup(r.text)
+print('Stats code: ', r.status_code)
+soup = BeautifulSoup(r.text,  features="html.parser")
 
 count_offers = int(soup.find('span', {'class': 'count-offers'}).text)   # количество офферов (всего)
 
@@ -59,29 +59,28 @@ all_offers = soup.find_all('div', {'class': 'prodContentBlock'})
 
 inf_offers = {a: {'name': '', 'img': '', 'id': '', 'active': '', 'cr': '', 'approve': '', 'category': '', 'country': '', 'cost': '', 'deductions': '', 'href': ''} for a in range(1, count_offers+1)}  # создание словаря для всех офферов
 
-for i in range(1, len(all_offers)):
+for i in range(1, len(all_offers)+1):
     procces_elem(i, i)
 
 count_offers = int(soup.find('span', {'class': 'count-offers'}).text)
-print(count_offers)
+print('Count offers: ', count_offers)
 
 
 for i in range(10, count_offers, 10):
     url = 'https://cpa.house/webmaster/offers/index/' + str(i)
     r = requests.get(url=url, headers=headers)
-    print(r.status_code)
-    soup = BeautifulSoup(r.text)
+    soup = BeautifulSoup(r.text, features="html.parser")
 
     count_offers = int(soup.find('span', {'class': 'count-offers'}).text)  # количество офферов (всего)
 
     all_offers = soup.find_all('div', {'class': 'prodContentBlock'})
 
-    for j in range(1, len(all_offers)):
-        num = (i-10) + j
+    for j in range(1, len(all_offers)+1):
+        num = i + j
         procces_elem(num, j)
 
 print(inf_offers)
-
-#with open('data.json', 'wb') as f:
-#    json.dump(data, codecs.getwriter('utf-8')(f), ensure_ascii=False)
+data = inf_offers
+with open('data.json', 'wb') as f:
+    json.dump(data, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
 
