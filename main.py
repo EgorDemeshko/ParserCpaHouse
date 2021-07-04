@@ -1,13 +1,31 @@
 import requests
 from bs4 import BeautifulSoup
-import json, codecs
+import json
+import codecs
+import time
+import re
+
+
+def pars_cr_landing(num):  # парсинг CR лэндинга для конкретного оффера
+    url = inf_offers[num]['href']
+    r = requests.get(url=url, headers=headers)
+    soup = BeautifulSoup(r.text, features="html.parser")
+    all_col4 = soup.find_all('div', {'class': ['col-4', 'landInfoValue']})
+    if len(all_col4) == 0:
+        output = 'null'
+    else:
+        s = ' '.join([item.text for item in all_col4])
+        s = s.replace('\n', ' ')
+        output = ' '.join(re.findall(r'CR:\s*(\d+(?:\.\d+)?%)', s))
+    return output
+
 
 def procces_elem(num, num_otn):
     num_otn -= 1
     inf_offers[num]['name'] = all_offers[num_otn].find('div', {'class': 'prodName'}).text.rstrip().strip('\n')  # Название оффера
     inf_offers[num]['img'] = all_offers[num_otn].find("img")["src"]  # ссылка на изображение
     inf_offers[num]['id'] = all_offers[num_otn].find('div', {'class': 'prodSku'}).text.strip().strip('ID: ')  # id оффера
-    inf_offers[num]['active'] = all_offers[num_otn].find('div', {'class': 'sProdStatus'}).text.strip('\n') # активный или нет
+    inf_offers[num]['active'] = all_offers[num_otn].find('div', {'class': 'sProdStatus'}).text.strip('\n')  # активный или нет
 
     infovals = all_offers[num_otn].find_all('span', {'class': 'sInfoVal'})
 
@@ -27,7 +45,10 @@ def procces_elem(num, num_otn):
         inf_offers[num]['cost'] = infovals[4].text.strip('\n')  # Стоимость
         inf_offers[num]['deductions'] = infovals[5].text.strip('\n')  # Отчисления
 
-    inf_offers[num]['href'] = all_offers[num_otn].find("a")["href"] #ссылка на оффер
+    inf_offers[num]['href'] = all_offers[num_otn].find("a")["href"]  # ссылка на оффер
+    inf_offers[num]['cr_landing'] = str(pars_cr_landing(num)) # удалите эту строчку, чтобы не заходить на страницу каждого оффера и не парсить CR лэндингов, это существенно снизит время работы
+    if inf_offers[num]['cr_landing'] == '':
+        inf_offers[num]['cr_landing'] = 'null'
 
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
@@ -48,16 +69,17 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36'
 }
 
+start_time = time.time()
 r = requests.get('https://cpa.house/webmaster/offers', headers=headers)
-print('Stats code: ', r.status_code)
+print('Status code: ', r.status_code)
+print('Waiting...')
 soup = BeautifulSoup(r.text,  features="html.parser")
 
 count_offers = int(soup.find('span', {'class': 'count-offers'}).text)   # количество офферов (всего)
 
+all_offers = soup.find_all('div', {'class': 'prodContentBlock'})  # поиск вех блоков, содержащих информацию об оффере
 
-all_offers = soup.find_all('div', {'class': 'prodContentBlock'})
-
-inf_offers = {a: {'name': '', 'img': '', 'id': '', 'active': '', 'cr': '', 'approve': '', 'category': '', 'country': '', 'cost': '', 'deductions': '', 'href': ''} for a in range(1, count_offers+1)}  # создание словаря для всех офферов
+inf_offers = {a: {'name': '', 'img': '', 'id': '', 'active': '', 'cr': '', 'approve': '', 'category': '', 'country': '', 'cost': '', 'deductions': '', 'href': '', 'cr_landing': ''} for a in range(1, count_offers+1)}  # создание словаря для всех офферов
 
 for i in range(1, len(all_offers)+1):
     procces_elem(i, i)
@@ -68,19 +90,18 @@ print('Count offers: ', count_offers)
 
 for i in range(10, count_offers, 10):
     url = 'https://cpa.house/webmaster/offers/index/' + str(i)
-    r = requests.get(url=url, headers=headers)
+    r = requests.get(url=url, headers=headers)  # запрос на каждые 10 офферов
     soup = BeautifulSoup(r.text, features="html.parser")
 
-    count_offers = int(soup.find('span', {'class': 'count-offers'}).text)  # количество офферов (всего)
-
-    all_offers = soup.find_all('div', {'class': 'prodContentBlock'})
+    all_offers = soup.find_all('div', {'class': 'prodContentBlock'})  # поиск ооферов на странице
 
     for j in range(1, len(all_offers)+1):
-        num = i + j
-        procces_elem(num, j)
+        procces_elem(i + j, j)  # обработка каждого из 10 офферов
 
-print(inf_offers)
 data = inf_offers
 with open('data.json', 'wb') as f:
-    json.dump(data, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
+    json.dump(data, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)  # запись информации об оферах в файл
+
+print('Ready! Check the file data.json.')
+print('Parsing', count_offers, 'offers in', int((time.time() - start_time) // 60), 'minutes', int(round((time.time() - start_time) - ((time.time() - start_time) // 60) * 60, 0)), 'seconds')
 
