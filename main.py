@@ -16,7 +16,9 @@ def pars_cr_landing(num):  # парсинг CR лэндинга для конк�
     else:
         s = ' '.join([item.text for item in all_col4])
         s = s.replace('\n', ' ')
-        output = ' '.join(re.findall(r'CR:\s*(\d+(?:\.\d+)?%)', s))
+        output = re.findall(r'CR:\s*(\d+(?:\.\d+)?%)', s)
+        if len(output) == 0:
+            output = 'null'
     return output
 
 
