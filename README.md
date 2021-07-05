@@ -1,6 +1,7 @@
 # Описание ParserCpaHouse
 Данный скрипт парсит страницу https://cpa.house/webmaster/offers, а также страницы каждого оффера и записывает информацию об оффере(Название, ID, Статус активности, CR, Апрув, Категоию, Страну, Стоимость, Отчисления, Ссылку на страницу оффера, CR лэндингов этого оффера) в JSON файл вида:
-![image](https://user-images.githubusercontent.com/69598745/124395806-72418f80-dd30-11eb-8222-b3cb93eaf88a.png)
+
+![image](https://user-images.githubusercontent.com/69598745/124433745-4a3c4580-dd9d-11eb-85f7-55a233a2e02e.png)
 
 # Запуск парсера
 1. Скачайте Python3 c офицального сайта - https://www.python.org/downloads/
